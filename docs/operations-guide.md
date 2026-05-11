@@ -36,7 +36,7 @@ Print version and exit.
 
 ## mdmutil passwd
 
-The `passwd` command generates a salted SHA-512 PBKDF2 hash of a plaintext password. The output is an Apple Property List (plist) containing the `SALTED-SHA512-PBKDF2` dictionary. This is the format required for the [`AccountConfiguration`](https://developer.apple.com/documentation/devicemanagement/accountconfiguration) and [`SetAutoAdminPassword`](https://developer.apple.com/documentation/devicemanagement/setautoadminpassword) MDM "v1" commands.
+The `passwd` command generates a salted SHA-512 PBKDF2 hash of a plaintext password. The output is an Apple Property List (plist) containing the `SALTED-SHA512-PBKDF2` dictionary. This is the format required for the [`AccountConfiguration`](https://developer.apple.com/documentation/devicemanagement/account-configuration-command) and [`SetAutoAdminPassword`](https://developer.apple.com/documentation/devicemanagement/set-auto-admin-password-command) MDM "v1" commands.
 
 ### Flags
 

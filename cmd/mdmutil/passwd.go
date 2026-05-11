@@ -29,13 +29,13 @@ func passwd(name string, args []string, usage func()) int {
 
 	ph, err := mupasswd.HashPassword(rand.Reader, *flPassword)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	plist, err := plist.MarshalIndent(ph, "  ")
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 

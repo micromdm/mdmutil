@@ -12,7 +12,8 @@ var version = "unknown"
 type cmdFn func(name string, args []string, usage func()) int
 
 var cmds = map[string]cmdFn{
-	"passwd": passwd,
+	"passwd":      passwd,
+	"mdmcsr-sign": mdmcsrSign,
 }
 
 func cmdUsage(f *flag.FlagSet, parentUsage func(), cmds map[string]cmdFn, help string) {
@@ -22,7 +23,11 @@ func cmdUsage(f *flag.FlagSet, parentUsage func(), cmds map[string]cmdFn, help s
 			fmt.Fprintln(f.Output(), "")
 		}
 		if len(cmds) > 0 {
-			fmt.Fprintf(f.Output(), "%s [flags] command [flags] %s\n", f.Name(), help)
+			pfx := ""
+			if parentUsage != nil {
+				pfx = "... "
+			}
+			fmt.Fprintf(f.Output(), "%s%s [flags] command [flags] %s\n", pfx, f.Name(), help)
 		} else {
 			fmt.Fprintf(f.Output(), "... %s [flags] %s\n", f.Name(), help)
 		}

@@ -154,3 +154,68 @@ writing apns_push.plist.b64.req
 ```
 
 Then `apns_push.plist.b64.req` can then be uploaded to the [Apple Push Certificates Portal](https://identity.apple.com/) to generated a signed MDM APNs push certificate.
+
+#### Full MDM CSR and APNs push certificate issuance
+
+Since the MDM CSR needs to be renewed yearly, let's walk through the complete end-to-end process for both the MDM CSR and APNs push certificate issuance. See also the [MicroMDM "Understanding MDM Certificates" blog post](https://micromdm.io/blog/certificates/) for a conceptual overview of this process.
+
+You'll need an [Apple Developer Account](https://developer.apple.com/programs/) with the "MDM CSR" certificate option enabled.
+
+##### 1. Generate the MDM CSR ... CSR and private key
+
+```bash
+openssl req -out mdmcsr.csr -newkey rsa:2048 -keyout mdmcsr.key -nodes -subj "/C=US/CN=MDM CSR/emailAddress=mdm-admin@example.com"
+```
+
+Be sure to replace any values in the template you'd like (e.g. the email address).
+
+##### 2. Get the MDM CSR certificate signed by Apple
+
+Upload the `mdmcsr.csr` to Apple Developer ["Certificates, Identifiers & Profiles" portal](https://developer.apple.com/account/resources/certificates/list). For reference [this older MicroMDM talk video walks through this process](https://www.youtube.com/watch?v=WGKT-PyHz6I&t=2152s) around the 35:52 mark.
+
+1. From the "Certificates, Identifiers & Profiles" portal add a new certificate (click the blue "+" button).
+2. Select the "MDM CSR" option and click the "Continue" button. See then note below if you do not have this option.
+3. Upload the `mdmcsr.csr` file you generated above to the portal page and "Continue"
+4. You should be offered a screen to download the signed certificate. It'll usually be called just `mdm.cer`.
+
+You now have an Apple-signed MDM CSR. Please keep the signed `mdm.cer` and `mdmcsr.key` around as you'll need them to sign APNs push certificate requests.
+
+##### 3. Generate the APNs Push CSR
+
+```bash
+openssl req -out push.csr -newkey rsa:2048 -keyout push.key -nodes -subj "/C=US/CN=APNs Push/emailAddress=mdm-admin@example.com"
+```
+
+Be sure to replace any values in the template you'd like (e.g. the email address or the `CN` describing which APNs push certificate).
+
+##### 4. Sign the APNs Push CSR request
+
+Use `mdmutil mdmcsr-sign` command which uses the MDM CSR private key and Apple-signed certificate to sign the APNs push certificate request:
+
+```bash
+./mdmutil-darwin-amd64 mdmcsr-sign -apns-csr push.csr -mdmcsr-private-key mdmcsr.key -mdmcsr-certificate mdm.cer -out push.plist.b64.req
+```
+
+If everything went smoothly, there should be no output and a new file: `push.plist.b64.req`.
+
+##### 5. Get the APNs Push certificate signed by Apple
+
+Upload the `push.plist.b64.req` Push Certificate request to the [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
+
+1. Login to the [Apple Push Certificates Portal](https://identity.apple.com/)
+2. **If you're renewing a certificate you must use the blue "Renew" button** for a previously issued push certificate. Failure to follow this step will require devices to be re-enrolled in MDM as the certificate "Topic" (`UserID` attribute) will be different.
+3. If you're creating a new APNs certificate use the green "Create a Certificate" button.
+4. Select the `push.plist.b64.req` for upload and optionally include a note for this APNs push certificate.
+5. Download the certificate. It is typically named `MDM_<account>_Certificate.pem` with the account replaced with the individual or business name of the Apple Developer Account.
+
+There you have it, you've had Apple mint you an APNs Push certificate. The `MDM_<account>_Certificate.pem` together with `push.key` should be a valid APNs Push certificate and private key pair for sending MDM APNs push notifications to devices once they've enrolled in an MDM server.
+
+#### Tips and FYIs
+
+- While the "MDM CSR" option used to require an [Enterprise](https://developer.apple.com/programs/enterprise/) Developer Account, a standard developer account now works just fine.
+- Only the Apple Developer [Account Holder](https://developer.apple.com/help/account/access/roles/) is able to get the "MDM CSR" option for signing.
+- If the Apple Developer Account Account Holder does not have the "MDM CSR" option in your "Certificates, Identifiers & Profiles" portal in your Apple Developer Account you'll need to [request it from Developer Support](https://developer.apple.com/contact/). See [this MacAdmins.org Slack thread](https://macadmins.slack.com/archives/C19RTE0L9/p1760296585318419?thread_ts=1758700336.136079&cid=C19RTE0L9) for more information and guidance on submitting this request.
+- Both the MDM CSR certificate and the APNs push certificate have **yearly expiries**.
+- As noted you must *Renew* (in the APNs push portal) the certificate or else **you'll need to re-enroll all your devices**. This implies careful control of the Apple ID used for the Apple Push Certificates Portal.
+- The Apple ID for the Apple Push Certificates Portal need not be linked with the Apple Developer Account nor Account Holder. The original intent was for an MDM vendor legal entity to control the Apple Developer Account while an MDM customer's legal entity controlled the Apple ID for the Push Certificate portal. Of course they may be very well be the same entity for self-hosted and open source MDM solutions, but this does not imply they need to be the same Apple ID or email address. If the account is shared beware of 2fac phone number management and related concerns.
+- It is possible to work with Apple to migrate Apple IDs for Push Certificates. See [Rich Trouton's blog post on APNs cert migration](https://derflounder.wordpress.com/2023/04/11/migrating-an-apns-certificate-from-one-apple-id-to-another-apple-id/) and [Apple's documentation](https://support.apple.com/en-us/118629).

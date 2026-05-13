@@ -183,7 +183,7 @@ You now have an Apple-signed MDM CSR. Please keep the signed `mdm.cer` and `mdmc
 ##### 3. Generate the APNs Push CSR
 
 ```bash
-openssl req -out push.csr -newkey rsa:2048 -keyout push.key -nodes -subj "/C=US/CN=APNs Push/emailAddress=mdm-admin@example.com"
+openssl req -out push.csr -newkey rsa:2048 -keyout push.key -nodes -subj "/C=US/CN=MDM APNs Push/emailAddress=mdm-admin@example.com"
 ```
 
 Be sure to replace any values in the template you'd like (e.g. the email address or the `CN` describing which APNs push certificate).

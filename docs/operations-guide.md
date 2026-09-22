@@ -1,6 +1,6 @@
 # MDMUtil Operations Guide
 
-This is a breif overview of working with the `mdmutil` CLI tool. MDMUtil is a tool for working with various data and aspects of Apple MDM.
+This is a brief overview of working with the `mdmutil` CLI tool. MDMUtil is a tool for working with various data and aspects of Apple MDM.
 
 ## mdmutil
 
@@ -16,8 +16,8 @@ Flags:
   ...
 
 Commands:
+  mdmcsr-sign
   passwd
-  ...
 ```
 
 ### Flags
@@ -83,7 +83,7 @@ PD94bWwgdmVyc2lvbj0iMS4wIiBlbmN[..snip..]
 
 ## mdmutil mdmcsr-sign
 
-The `mdmutil mdmcsr-sign` command signs an APNs push certificate using an Apple MDM CSR keypair and generates the Base64 encoded property list required by the [Apple Push Certificates Portal](https://identity.apple.com/). This is described by Apple as [Setting Up Push Notifications for Your MDM Customers](https://developer.apple.com/documentation/devicemanagement/setting-up-push-notifications-for-your-mdm-customers). See also the [MicroMDM "Understanding MDM Certificates" blog post](https://micromdm.io/blog/certificates/).
+The `mdmutil mdmcsr-sign` command signs an APNs push certificate request using an Apple MDM CSR keypair and generates the Base64 encoded property list required by the [Apple Push Certificates Portal](https://identity.apple.com/). This is described by Apple as [Setting Up Push Notifications for Your MDM Customers](https://developer.apple.com/documentation/devicemanagement/setting-up-push-notifications-for-your-mdm-customers). See also the [MicroMDM "Understanding MDM Certificates" blog post](https://micromdm.io/blog/certificates/).
 
 ### Flags
 
@@ -153,7 +153,7 @@ signing
 writing apns_push.plist.b64.req
 ```
 
-Then `apns_push.plist.b64.req` can then be uploaded to the [Apple Push Certificates Portal](https://identity.apple.com/) to generated a signed MDM APNs push certificate.
+The `apns_push.plist.b64.req` can then be uploaded to the [Apple Push Certificates Portal](https://identity.apple.com/) to generate a signed MDM APNs push certificate.
 
 #### Full MDM CSR and APNs push certificate issuance
 

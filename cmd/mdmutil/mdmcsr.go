@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"time"
 
@@ -49,24 +50,30 @@ func mdmcsrSign(name string, args []string, usage func()) int {
 	)
 	cmdUsage(f, usage, nil, "")
 
-	if err := f.Parse(args); err != nil {
-		flagUsageExit(f, "failed to parse args", 2)
-	}
+	f.Parse(args)
 
 	if *flAPNsCSR == "" || *flMDMCSRCert == "" || *flMDMCSRPrivKey == "" {
 		flagUsageExit(f, "path to APNs CSR, MDM CSR cert, and MDM CSR priv key must all be specified", 2)
 	}
 
+	// the Apple certificates of the chain, in the order they're included
+	appleCerts := []struct{ filename, url string }{
+		{*flRootCA, AppleRootCAURL},
+		{*flIntermed, AppleIntermediateURL},
+	}
+
+	if *flRootCA == *flIntermed {
+		fmt.Fprintln(os.Stderr, "root CA and intermediate certificate paths must differ")
+		return 1
+	}
+
 	// download the root & intermediate certs if they don't exist
-	for filename, url := range map[string]string{
-		*flRootCA:   AppleRootCAURL,
-		*flIntermed: AppleIntermediateURL,
-	} {
-		if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
+	for _, appleCert := range appleCerts {
+		if _, err := os.Stat(appleCert.filename); errors.Is(err, os.ErrNotExist) {
 			if *flVerbose {
-				fmt.Fprintf(os.Stderr, "downloading %s to %s\n", url, filename)
+				fmt.Fprintf(os.Stderr, "downloading %s to %s\n", appleCert.url, appleCert.filename)
 			}
-			if err = downloadToFile(httpClient, url, filename); err != nil {
+			if err = downloadToFile(httpClient, appleCert.url, appleCert.filename); err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return 1
 			}
@@ -75,11 +82,11 @@ func mdmcsrSign(name string, args []string, usage func()) int {
 
 	// then load the root & intermediate certs
 	var certs [][]byte
-	for _, filename := range []string{*flRootCA, *flIntermed} {
+	for _, appleCert := range appleCerts {
 		if *flVerbose {
-			fmt.Fprintf(os.Stderr, "reading certificate %s\n", filename)
+			fmt.Fprintf(os.Stderr, "reading certificate %s\n", appleCert.filename)
 		}
-		cer, err := os.ReadFile(filename)
+		cer, err := os.ReadFile(appleCert.filename)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
@@ -133,7 +140,7 @@ func mdmcsrSign(name string, args []string, usage func()) int {
 	// parse the CSR as a sanity check
 	pemBlock, err = decodePEM(csrBytes, []string{"CERTIFICATE REQUEST"})
 	if err != nil {
-		err = fmt.Errorf("mdmcsr certificate %s: decode PEM: %w", *flAPNsCSR, err)
+		err = fmt.Errorf("apns csr %s: decode PEM: %w", *flAPNsCSR, err)
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -171,7 +178,8 @@ func mdmcsrSign(name string, args []string, usage func()) int {
 			signer, err = x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
 		}
 	case "PRIVATE KEY":
-		p8key, err := x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
+		var p8key any
+		p8key, err = x509.ParsePKCS8PrivateKey(pemBlock.Bytes)
 		if err == nil {
 			var ok bool
 			signer, ok = p8key.(crypto.Signer)
@@ -237,7 +245,7 @@ type HTTPGetter interface {
 	Get(url string) (resp *http.Response, err error)
 }
 
-func downloadToFile(getter HTTPGetter, url, filepath string) error {
+func downloadToFile(getter HTTPGetter, url, dest string) error {
 	if getter == nil {
 		getter = http.DefaultClient
 	}
@@ -252,15 +260,28 @@ func downloadToFile(getter HTTPGetter, url, filepath string) error {
 		return fmt.Errorf("bad status fetching %s: %s", url, resp.Status)
 	}
 
-	f, err := os.Create(filepath)
+	// download to a temporary file and rename it into place only once the
+	// body has been read in full. an interrupted download would otherwise
+	// leave a truncated file that we'd take for a complete one next run.
+	f, err := os.CreateTemp(filepath.Dir(dest), filepath.Base(dest)+".tmp")
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer f.Close()
+	// no-op after a successful rename
+	defer os.Remove(f.Name())
 
 	_, err = io.Copy(f, resp.Body)
 	if err != nil {
+		f.Close()
 		return fmt.Errorf("failed to download body: %w", err)
+	}
+
+	if err = f.Close(); err != nil {
+		return fmt.Errorf("failed to close file: %w", err)
+	}
+
+	if err = os.Rename(f.Name(), dest); err != nil {
+		return fmt.Errorf("failed to rename file: %w", err)
 	}
 
 	return nil

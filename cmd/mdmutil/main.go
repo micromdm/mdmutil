@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 )
 
 // overridden by -ldflags -X
@@ -35,7 +37,8 @@ func cmdUsage(f *flag.FlagSet, parentUsage func(), cmds map[string]cmdFn, help s
 		f.PrintDefaults()
 		if len(cmds) > 0 {
 			fmt.Fprintln(f.Output(), "\nCommands:")
-			for cmd := range cmds {
+			// sorted: map iteration order is not specified
+			for _, cmd := range slices.Sorted(maps.Keys(cmds)) {
 				fmt.Fprintf(f.Output(), "  %s\n", cmd)
 			}
 		}

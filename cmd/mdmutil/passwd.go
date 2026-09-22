@@ -19,9 +19,7 @@ func passwd(name string, args []string, usage func()) int {
 	)
 	cmdUsage(f, usage, nil, "")
 
-	if err := f.Parse(args); err != nil {
-		flagUsageExit(f, "failed to parse args", 2)
-	}
+	f.Parse(args)
 
 	if *flPassword == "" {
 		flagUsageExit(f, "no password supplied", 2)
@@ -30,13 +28,13 @@ func passwd(name string, args []string, usage func()) int {
 	ph, err := mupasswd.HashPassword(rand.Reader, *flPassword)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 
 	plist, err := plist.MarshalIndent(ph, "  ")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return 1
 	}
 
 	if *flB64 {

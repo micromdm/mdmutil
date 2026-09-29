@@ -1,3 +1,4 @@
+// Package passwd provides salted SHA-512 PBKDF2 password hashing for Apple MDM.
 package passwd
 
 import (
